@@ -4,12 +4,6 @@ const STATUS_REJECTED = 'rejected';
 const STATUS_OPEN = 'open';
 const STATUS_APPROVED = 'approved';
 
-Date.prototype.yyyymmdd = function () {
-  let mm = this.getMonth() + 1;
-  let dd = this.getDate();
-  return [this.getFullYear(), (mm > 9 ? '' : '0') + mm, (dd > 9 ? '' : '0') + dd].join('-');
-};
-
 class CityadsApi {
 
   static STATUS_REJECTED = STATUS_REJECTED;
@@ -18,6 +12,12 @@ class CityadsApi {
 
   constructor(webmasterToken) {
     this.token = webmasterToken;
+  }
+
+  toCityadsFormatDate(timestamp) {
+    let mm = new Date(timestamp).getMonth() + 1;
+    let dd = new Date(timestamp).getDate();
+    return [new Date(timestamp).getFullYear(), (mm > 9 ? '' : '0') + mm, (dd > 9 ? '' : '0') + dd].join('-');
   }
 
   async getProfile() {
@@ -53,8 +53,8 @@ class CityadsApi {
   }
 
   async getCrByOfferId(dateFrom, dateTo, offerId, channelId = null) {
-    dateFrom = new Date(dateFrom).yyyymmdd();
-    dateTo = new Date(dateTo).yyyymmdd();
+    dateFrom = this.toCityadsFormatDate(dateFrom);
+    dateTo = this.toCityadsFormatDate(dateTo);
     let items = await this.getStatisticsOffersByOfferId(dateFrom, dateTo, offerId, channelId);
     if (!items.length) {
       return false;
@@ -66,8 +66,8 @@ class CityadsApi {
   }
 
   async getLeadsByOfferId(dateFrom, dateTo, offerId = null, channelId = null, xid = '') {
-    dateFrom = new Date(dateFrom).yyyymmdd();
-    dateTo = new Date(dateTo).yyyymmdd();
+    dateFrom = this.toCityadsFormatDate(dateFrom);
+    dateTo = this.toCityadsFormatDate(dateTo);
     let params = 'orderstatistics/' + dateFrom + '/' + dateTo + '?limit=5000&date_type=order_upload&';
     if (offerId) {
       params += 'action_id=' + offerId + '&';
@@ -84,13 +84,23 @@ class CityadsApi {
         item.orderId = item.submissionID;
         item.offerId = Number(item.offerID);
         item.status = this.getLeadStatus(item.status);
-        item.leadTimestamp = this.getTimestampByTextDate(item.leadTime);
-        item.saleTimestamp = this.getTimestampByTextDate(item.saleTime);
         item.commission = item.commissionApproved || item.commissionCancelled || item.commissionOpen;
+        item.leadTime = this.getTimestampByTextDate(item.leadTime);
+        item.uploadTime = this.getUploadTime(item.status, item.saleTime);
       });
       return result.items;
     }
     return false;
+  }
+
+  getUploadTime(status, saleTime) {
+    if (status === STATUS_APPROVED) {
+      return saleTime ? this.getTimestampByTextDate(saleTime) : Date.now();
+    }
+    if (status === STATUS_REJECTED) {
+      return Date.now();
+    }
+    return null;
   }
 
   /**
@@ -98,8 +108,8 @@ class CityadsApi {
    * @return items{offerId,clickCount,leadsOpen}
    */
   async getStatisticsOffersByOfferId(dateFrom, dateTo, offerId = null, channelId = null) {
-    dateFrom = new Date(dateFrom).yyyymmdd();
-    dateTo = new Date(dateTo).yyyymmdd();
+    dateFrom = this.toCityadsFormatDate(dateFrom);
+    dateTo = this.toCityadsFormatDate(dateTo);
     let params = 'statistics-offers/action_id/' + dateFrom + '/' + dateTo + '?limit=1000&';
     if (offerId) {
       params += 'action_id=' + offerId + '&';
@@ -113,11 +123,12 @@ class CityadsApi {
       result.items.map(item => {
         item.offerId = Number(item.actionID) || 0;
         item.offerName = item.actionName || '';
+        item.leadsRejected = 0,
         item.leadsOpen = Number(item.saleOpen) || Number(item.leadsOpen) || 0;
         item.leadsApproved = Number(item.saleApproved) || Number(item.leadsApproved) || 0;
-        item.clickCount = Number(item.clickCount) || 0;
+        item.clicks = Number(item.clickCount) || 0;
         item.backUrlCount = Number(item.backUrlRedirectCount) || 0;
-        item.commissionCancelled = item.commissionCancelled ? Number(item.commissionCancelled.toFixed(2)) : 0;
+        item.commissionRejected = item.commissionCancelled ? Number(item.commissionCancelled.toFixed(2)) : 0;
         item.commissionOpen = item.commissionOpen ? Number(item.commissionOpen.toFixed(2)) : 0;
         item.commissionApproved = item.commissionApproved ? Number(item.commissionApproved.toFixed(2)) : 0;
       });
@@ -128,15 +139,15 @@ class CityadsApi {
 
   async getWebmasterCommissions(dateFrom, dateTo, offerId = null) {
     let stats = await this.getStatisticsOffersByOfferId(dateFrom, dateTo, offerId);
-    let commissionApproved = 0;
+    let commissionRejected = 0;
     let commissionOpen = 0;
-    let commissionCancelled = 0;
+    let commissionApproved = 0;
     for (let item of stats) {
-      commissionApproved = Number((commissionApproved + item.commissionApproved).toFixed(2));
+      commissionRejected = Number((commissionRejected + item.commissionCancelled).toFixed(2));
       commissionOpen = Number((commissionOpen + item.commissionOpen).toFixed(2));
-      commissionCancelled = Number((commissionCancelled + item.commissionCancelled).toFixed(2));
+      commissionApproved = Number((commissionApproved + item.commissionApproved).toFixed(2));
     }
-    return {commissionOpen, commissionApproved, commissionCancelled};
+    return {commissionRejected, commissionOpen, commissionApproved};
   }
 
 
@@ -186,7 +197,7 @@ class CityadsApi {
     } catch(e) {
       console.error('cityads api error', e);
     }
-    // console.info('cityResult', new Date().toLocaleString());
+    // console.info('cityResult', new Date().toLocaleString(), result);
     if (!result.error && result.status === 200 && result.data) {
       return result.data;
     }
