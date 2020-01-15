@@ -42,7 +42,10 @@ class CityadsApi {
     let result = [];
     for (let i in data.items) {
       if (data.items[i].is_active === '1') {
-        result.push(Number(data.items[i].id));
+        result.push({
+          id: Number(data.items[i].id),
+          name: data.items[i].name
+        });
       }
     }
     return result;
