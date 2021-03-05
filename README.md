@@ -17,11 +17,14 @@ npm install --save cityads-webmaster-api
     let links = await api.getOfferLinksByOfferId(29028);
 
 ## API
-* getLeadsByOfferId(timestamp dateFrom, timestamp dateTo, int offerId, int channelId): Array< Object >
+* getProfile(): Object
+* getBalance(): Object
+* getTrafficChannels(): Array< Number >
+* getOfferDataByOfferId(int offerId): Object
+* getOffersData(Array< Number > offerIds, int channelId): Object
+* getCrByOfferId(timestamp dateFrom, timestamp dateTo, int offerId, int channelId): Object
+* getLeadsByOfferId(timestamp dateFrom, timestamp dateTo, int offerId, int channelId, string xid): Array< Object >
 * getStatisticsOffersByOfferId(timestamp dateFrom, timestamp dateTo, int offerId, int channelId): Object
 * getWebmasterCommissions(timestamp dateFrom, timestamp dateTo, int offerId): Object
 * getOfferLinksByOfferId(int offerId, int channelId): Object
-* getBalance(): Object
-* getTrafficChannels(): Array< Number >
-* getCrByOfferId(timestamp dateFrom, timestamp dateTo, int offerId): Object
 * apiRequest(params) - native cityads api request

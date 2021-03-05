@@ -14,12 +14,6 @@ class CityadsApi {
     this.token = webmasterToken;
   }
 
-  toCityadsFormatDate(timestamp) {
-    let mm = new Date(timestamp).getMonth() + 1;
-    let dd = new Date(timestamp).getDate();
-    return [new Date(timestamp).getFullYear(), (mm > 9 ? '' : '0') + mm, (dd > 9 ? '' : '0') + dd].join('-');
-  }
-
   async getProfile() {
     let profile = await this.apiRequest('profile');
     profile.id = Number(profile.id);
@@ -55,9 +49,32 @@ class CityadsApi {
     return await this.apiRequest('offer/' + offerId);
   }
 
+  async getOffersData(offerIds, channelId) {
+    let action = 'offers/web';
+    let params = new Map();
+    if (offerIds) {
+      params.set('ids', offerIds.join(','));
+    }
+    if (channelId) {
+      params.set('traffic_channel_id', channelId);
+    }
+    let result = {};
+    let start = 0;
+    let limit = 1000;
+    let apiData;
+    do {
+      params.set('start', start);
+      params.set('limit', limit);
+      apiData = await this.apiRequest(action, params);
+      result = {...result, ...apiData.items};
+      start++;
+    } while (apiData.total > limit * start)
+    return result;
+  }
+
   async getCrByOfferId(dateFrom, dateTo, offerId, channelId = null) {
-    dateFrom = this.toCityadsFormatDate(dateFrom);
-    dateTo = this.toCityadsFormatDate(dateTo);
+    dateFrom = this.#toCityadsFormatDate(dateFrom);
+    dateTo = this.#toCityadsFormatDate(dateTo);
     let items = await this.getStatisticsOffersByOfferId(dateFrom, dateTo, offerId, channelId);
     if (!items.length) {
       return false;
@@ -69,41 +86,42 @@ class CityadsApi {
   }
 
   async getLeadsByOfferId(dateFrom, dateTo, offerId = null, channelId = null, xid = '') {
-    dateFrom = this.toCityadsFormatDate(dateFrom);
-    dateTo = this.toCityadsFormatDate(dateTo);
-    let params = 'orderstatistics/' + dateFrom + '/' + dateTo + '?limit=5000&date_type=order_upload&';
+    dateFrom = this.#toCityadsFormatDate(dateFrom);
+    dateTo = this.#toCityadsFormatDate(dateTo);
+    let action = 'orderstatistics/' + dateFrom + '/' + dateTo;
+    let params = new Map();
+    params.set('date_type', 'order_upload');
     if (offerId) {
-      params += 'action_id=' + offerId + '&';
+      params.set('action_id', offerId);
     }
     if (channelId) {
-      params += 'channel_id=' + channelId + '&';
+      params.set('channel_id', channelId);
     }
     if (xid) {
-      params += 'xid=' + xid;
+      params.set('xid', xid);
     }
-    let result = await this.apiRequest(params);
-    if (result && Array.isArray(result.items)) {
-      result.items.map(item => {
-        item.orderId = item.submissionID;
-        item.offerId = Number(item.offerID);
-        item.status = this.getLeadStatus(item.status);
-        item.commission = item.commissionApproved || item.commissionCancelled || item.commissionOpen;
-        item.leadTime = this.getTimestampByTextDate(item.leadTime);
-        item.uploadTime = this.getUploadTime(item.status, item.saleTime);
-      });
-      return result.items;
-    }
-    return false;
-  }
-
-  getUploadTime(status, saleTime) {
-    if (status === STATUS_APPROVED) {
-      return saleTime ? this.getTimestampByTextDate(saleTime) : Date.now();
-    }
-    if (status === STATUS_REJECTED) {
-      return Date.now();
-    }
-    return null;
+    let result = [];
+    let start = 0;
+    let limit = 1000;
+    let apiData;
+    do {
+      params.set('start', start);
+      params.set('limit', limit);
+      apiData = await this.apiRequest(action, params);
+      if (apiData && Array.isArray(apiData.items)) {
+        apiData.items.map(item => {
+          item.orderId = item.submissionID;
+          item.offerId = Number(item.offerID);
+          item.status = this.#getLeadStatus(item.status);
+          item.commission = item.commissionApproved || item.commissionCancelled || item.commissionOpen;
+          item.leadTime = this.#getTimestampByTextDate(item.leadTime);
+          item.uploadTime = this.#getUploadTime(item.status, item.saleTime);
+        });
+        result = result.concat(apiData.items)
+      }
+      start++;
+    } while (apiData.total > limit * start)
+    return result;
   }
 
   /**
@@ -111,33 +129,43 @@ class CityadsApi {
    * @return items{offerId,clickCount,leadsOpen}
    */
   async getStatisticsOffersByOfferId(dateFrom, dateTo, offerId = null, channelId = null) {
-    dateFrom = this.toCityadsFormatDate(dateFrom);
-    dateTo = this.toCityadsFormatDate(dateTo);
-    let params = 'statistics-offers/action_id/' + dateFrom + '/' + dateTo + '?limit=1000&';
+    dateFrom = this.#toCityadsFormatDate(dateFrom);
+    dateTo = this.#toCityadsFormatDate(dateTo);
+    let action = 'statistics-offers/action_id/' + dateFrom + '/' + dateTo;
+    let params = new Map();
     if (offerId) {
-      params += 'action_id=' + offerId + '&';
+      params.set('action_id', offerId);
     }
     if (channelId) {
-      params += 'channel_id=' + channelId;
+      params.set('channel_id', channelId);
     }
-    // params += '&sub_group=channel_id';
-    let result = await this.apiRequest(params);
-    if (result && Array.isArray(result.items)) {
-      result.items.map(item => {
-        item.offerId = Number(item.actionID) || 0;
-        item.offerName = item.actionName || '';
-        item.leadsRejected = 0,
-        item.leadsOpen = Number(item.saleOpen) || Number(item.leadsOpen) || 0;
-        item.leadsApproved = Number(item.saleApproved) || Number(item.leadsApproved) || 0;
-        item.clicks = Number(item.clickCount) || 0;
-        item.backUrlCount = Number(item.backUrlRedirectCount) || 0;
-        item.commissionRejected = item.commissionCancelled ? Number(item.commissionCancelled.toFixed(2)) : 0;
-        item.commissionOpen = item.commissionOpen ? Number(item.commissionOpen.toFixed(2)) : 0;
-        item.commissionApproved = item.commissionApproved ? Number(item.commissionApproved.toFixed(2)) : 0;
-      });
-      return result.items;
-    }
-    return false;
+    // params.set('sub_group', channel_id);
+    let result = [];
+    let start = 0;
+    let limit = 1000;
+    let apiData;
+    do {
+      params.set('start', start);
+      params.set('limit', limit);
+      apiData = await this.apiRequest(action, params);
+      if (apiData && Array.isArray(apiData.items)) {
+        apiData.items.map(item => {
+          item.offerId = Number(item.actionID) || 0;
+          item.offerName = item.actionName || '';
+          item.leadsRejected = 0;
+          item.leadsOpen = Number(item.saleOpen) || Number(item.leadsOpen) || 0;
+          item.leadsApproved = Number(item.saleApproved) || Number(item.leadsApproved) || 0;
+          item.clicks = Number(item.clickCount) || 0;
+          item.backUrlCount = Number(item.backUrlRedirectCount) || 0;
+          item.commissionRejected = item.commissionCancelled ? Number(item.commissionCancelled.toFixed(2)) : 0;
+          item.commissionOpen = item.commissionOpen ? Number(item.commissionOpen.toFixed(2)) : 0;
+          item.commissionApproved = item.commissionApproved ? Number(item.commissionApproved.toFixed(2)) : 0;
+        });
+        result = result.concat(apiData.items)
+      }
+      start++;
+    } while (apiData.total > limit * start)
+    return result;
   }
 
   async getWebmasterCommissions(dateFrom, dateTo, offerId = null) {
@@ -153,20 +181,36 @@ class CityadsApi {
     return {commissionRejected, commissionOpen, commissionApproved};
   }
 
-
-  async getOfferLinksByOfferId(offerId, trafficChannelId) {
-    let params = 'offer-links/' + offerId;
-    if (trafficChannelId) {
-      params += '?traffic_channel_id=' + trafficChannelId;
+  async getOfferLinksByOfferId(offerId, channelId) {
+    let action = 'offer-links/' + offerId;
+    let params = new Map();
+    if (channelId) {
+      params.set('traffic_channel_id', channelId);
     }
-    let result = await this.apiRequest(params);
+    let result = await this.apiRequest(action, params);
     if (result && Array.isArray(result.items)) {
       return result.items.filter(item => item.is_default);
     }
     return false;
   }
 
-  getLeadStatus(status) {
+  #toCityadsFormatDate(timestamp) {
+    let mm = new Date(timestamp).getMonth() + 1;
+    let dd = new Date(timestamp).getDate();
+    return [new Date(timestamp).getFullYear(), (mm > 9 ? '' : '0') + mm, (dd > 9 ? '' : '0') + dd].join('-');
+  }
+
+  #getUploadTime(status, saleTime) {
+    if (status === STATUS_APPROVED) {
+      return saleTime ? this.#getTimestampByTextDate(saleTime) : Date.now();
+    }
+    if (status === STATUS_REJECTED) {
+      return Date.now();
+    }
+    return null;
+  }
+
+  #getLeadStatus(status) {
     switch (status) {
       case 'Open':
       case 'Открытая':
@@ -182,7 +226,7 @@ class CityadsApi {
     }
   }
 
-  getTimestampByTextDate(datetime) {
+  #getTimestampByTextDate(datetime) {
     if (!datetime) {
       return null;
     }
@@ -191,14 +235,16 @@ class CityadsApi {
     return Date.parse(date[2] + '-' + date[1] + '-' + date[0] + ' ' + datetime[1] + ' ' + datetime[2]);
   }
 
-  async apiRequest(params) {
-    let url = CITYADS_API_URL + params + (params.includes('?') ? '&' : '?') + 'remote_auth=' + this.token;
+  async apiRequest(action, params = new Map()) {
+    params.set('remote_auth', this.token)
+    let url = new URL(action, CITYADS_API_URL).toString() + '?' + new URLSearchParams(params).toString();
     // console.info('cityApiRequest', new Date().toLocaleString(), url);
     let result;
     try {
       result = await (await fetch(url)).json();
-    } catch(e) {
+    } catch (e) {
       console.error('cityads api error', e);
+      return false;
     }
     // console.info('cityResult', new Date().toLocaleString(), result);
     if (!result.error && result.status === 200 && result.data) {
