@@ -31,6 +31,23 @@ class CityadsApi {
     }
   }
 
+  async chargeHistoryList() {
+    let action = 'chargehistorylist';
+    let params = new Map();
+    let result = [];
+    let start = 0;
+    let limit = 1000;
+    let apiData;
+    do {
+      params.set('start', start);
+      params.set('limit', limit);
+      apiData = await this.apiRequest(action, params);
+      result = result.concat(apiData.items || [])
+      start++;
+    } while (apiData.total > limit * start)
+    return result;
+  }
+
   async getTrafficChannels() {
     let data = await this.apiRequest('traffic_channels');
     let result = [];

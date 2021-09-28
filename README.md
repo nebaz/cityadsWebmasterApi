@@ -19,6 +19,7 @@ npm install --save cityads-webmaster-api
 ## API
 * getProfile(): Object
 * getBalance(): Object
+* chargeHistoryList(): Array< Object >
 * getTrafficChannels(): Array< Number >
 * getOfferDataByOfferId(int offerId): Object
 * getOffersData(Array< Number > offerIds, int channelId): Object
@@ -27,4 +28,4 @@ npm install --save cityads-webmaster-api
 * getStatisticsOffersByOfferId(timestamp dateFrom, timestamp dateTo, int offerId, int channelId): Object
 * getWebmasterCommissions(timestamp dateFrom, timestamp dateTo, int offerId): Object
 * getOfferLinksByOfferId(int offerId, int channelId): Object
-* apiRequest(params) - native cityads api request
+* apiRequest(action, params) - native cityads api request
