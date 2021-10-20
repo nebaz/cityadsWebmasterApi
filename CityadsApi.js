@@ -99,10 +99,10 @@ class CityadsApi {
     if (!items.length) {
       return false;
     }
-    let crTotal = items[0].crTotal * 100;
-    let openLeads = items[0].leadsOpen;
-    let clickCount = items[0].clickCount;
-    return {crTotal, openLeads, clickCount};
+    let cr = items[0].cr * 100;
+    let clicks = items[0].clicks;
+    let leads = items[0].leadsRejected + items[0].leadsOpen + items[0].leadsApproved;
+    return {cr, clicks, leads, offerId, channelId};
   }
 
   async getLeadsByOfferId(dateFrom, dateTo, offerId = null, channelId = null, xid = '') {
@@ -175,14 +175,15 @@ class CityadsApi {
           offerId: Number(item.actionID) || 0,
           channelId: Number(item.channelId) || 0,
           offerName: item.actionName || '',
+          clicks: Number(item.clickCount) || 0,
+          backUrlCount: Number(item.backUrlRedirectCount) || 0,
           leadsRejected: Number(item.saleCancelled) || Number(item.leadsCancelled) || 0,
           leadsOpen: Number(item.saleOpen) || Number(item.leadsOpen) || 0,
           leadsApproved: Number(item.saleApproved) || Number(item.leadsApproved) || 0,
-          clicks: Number(item.clickCount) || 0,
-          backUrlCount: Number(item.backUrlRedirectCount) || 0,
           commissionRejected: item.commissionCancelled ? Number(item.commissionCancelled.toFixed(2)) : 0,
           commissionOpen: item.commissionOpen ? Number(item.commissionOpen.toFixed(2)) : 0,
           commissionApproved: item.commissionApproved ? Number(item.commissionApproved.toFixed(2)) : 0,
+          cr: Number(item.crTotal) || 0,
         })));
       }
       start++;
@@ -196,7 +197,7 @@ class CityadsApi {
     let commissionOpen = 0;
     let commissionApproved = 0;
     for (let item of stats) {
-      commissionRejected = Number((commissionRejected + item.commissionCancelled).toFixed(2));
+      commissionRejected = Number((commissionRejected + item.commissionRejected).toFixed(2));
       commissionOpen = Number((commissionOpen + item.commissionOpen).toFixed(2));
       commissionApproved = Number((commissionApproved + item.commissionApproved).toFixed(2));
     }
