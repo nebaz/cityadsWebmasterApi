@@ -25,7 +25,7 @@ npm install --save cityads-webmaster-api
 * getOffersData(Array< Number > offerIds, int channelId): Object
 * getCrByOfferId(timestamp dateFrom, timestamp dateTo, int offerId, int channelId): Object
 * getLeadsByOfferId(timestamp dateFrom, timestamp dateTo, int offerId, int channelId, string xid): Array< Object >
-* getStatisticsOffersByOfferId(timestamp dateFrom, timestamp dateTo, int offerId, int channelId): Object
+* getStatisticsOffersByOfferId(timestamp dateFrom, timestamp dateTo, int offerId, int channelId, string group): Object
 * getWebmasterCommissions(timestamp dateFrom, timestamp dateTo, int offerId): Object
 * getOfferLinksByOfferId(int offerId, int channelId): Object
 * apiRequest(action, params) - native cityads api request

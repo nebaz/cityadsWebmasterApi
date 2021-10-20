@@ -83,6 +83,9 @@ class CityadsApi {
       params.set('start', start);
       params.set('limit', limit);
       apiData = await this.apiRequest(action, params);
+      if (!apiData) {
+        return false;
+      }
       result = {...result, ...apiData.items};
       start++;
     } while (apiData.total > limit * start)
@@ -143,9 +146,9 @@ class CityadsApi {
 
   /**
    * short grouped statistics by offer and chanel
-   * @return items{offerId,clickCount,leadsOpen}
+   * @return items{offerId,clicks,leadsOpen,commissionOpen,...}
    */
-  async getStatisticsOffersByOfferId(dateFrom, dateTo, offerId = null, channelId = null) {
+  async getStatisticsOffersByOfferId(dateFrom, dateTo, offerId = null, channelId = null, group = null) {
     dateFrom = this.#toCityadsFormatDate(dateFrom);
     dateTo = this.#toCityadsFormatDate(dateTo);
     let action = 'statistics-offers/action_id/' + dateFrom + '/' + dateTo;
@@ -156,7 +159,9 @@ class CityadsApi {
     if (channelId) {
       params.set('channel_id', channelId);
     }
-    // params.set('sub_group', channel_id);
+    if (group) {
+      params.set('sub_group', group);
+    }
     let result = [];
     let start = 0;
     let limit = 1000;
@@ -166,19 +171,19 @@ class CityadsApi {
       params.set('limit', limit);
       apiData = await this.apiRequest(action, params);
       if (apiData && Array.isArray(apiData.items)) {
-        apiData.items.map(item => {
-          item.offerId = Number(item.actionID) || 0;
-          item.offerName = item.actionName || '';
-          item.leadsRejected = 0;
-          item.leadsOpen = Number(item.saleOpen) || Number(item.leadsOpen) || 0;
-          item.leadsApproved = Number(item.saleApproved) || Number(item.leadsApproved) || 0;
-          item.clicks = Number(item.clickCount) || 0;
-          item.backUrlCount = Number(item.backUrlRedirectCount) || 0;
-          item.commissionRejected = item.commissionCancelled ? Number(item.commissionCancelled.toFixed(2)) : 0;
-          item.commissionOpen = item.commissionOpen ? Number(item.commissionOpen.toFixed(2)) : 0;
-          item.commissionApproved = item.commissionApproved ? Number(item.commissionApproved.toFixed(2)) : 0;
-        });
-        result = result.concat(apiData.items)
+        result = result.concat(apiData.items.map(item => ({
+          offerId: Number(item.actionID) || 0,
+          channelId: Number(item.channelId) || 0,
+          offerName: item.actionName || '',
+          leadsRejected: Number(item.saleCancelled) || Number(item.leadsCancelled) || 0,
+          leadsOpen: Number(item.saleOpen) || Number(item.leadsOpen) || 0,
+          leadsApproved: Number(item.saleApproved) || Number(item.leadsApproved) || 0,
+          clicks: Number(item.clickCount) || 0,
+          backUrlCount: Number(item.backUrlRedirectCount) || 0,
+          commissionRejected: item.commissionCancelled ? Number(item.commissionCancelled.toFixed(2)) : 0,
+          commissionOpen: item.commissionOpen ? Number(item.commissionOpen.toFixed(2)) : 0,
+          commissionApproved: item.commissionApproved ? Number(item.commissionApproved.toFixed(2)) : 0,
+        })));
       }
       start++;
     } while (apiData.total > limit * start)
