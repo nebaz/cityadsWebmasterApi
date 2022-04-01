@@ -133,7 +133,7 @@ class CityadsApi {
           item.orderId = item.submissionID;
           item.offerId = Number(item.offerID);
           item.status = this.#getLeadStatus(item.status);
-          item.commission = item.commissionApproved || item.commissionCancelled || item.commissionOpen;
+          item.commission = this.#getLeadCommissionByStatus(item);
           item.leadTime = this.#getTimestampByTextDate(item.leadTime);
           item.uploadTime = this.#getUploadTime(item.status, item.saleTime);
         });
@@ -256,6 +256,19 @@ class CityadsApi {
     datetime = datetime.split(' ');
     let date = datetime[0].split('.');
     return Date.parse(date[2] + '-' + date[1] + '-' + date[0] + ' ' + datetime[1] + ' ' + datetime[2]);
+  }
+
+  #getLeadCommissionByStatus(lead) {
+    switch (lead.status) {
+      case STATUS_APPROVED:
+        return lead.commissionApproved;
+      case STATUS_OPEN:
+        return lead.commissionOpen;
+      case STATUS_REJECTED:
+        return lead.commissionCancelled;
+      default:
+        lead.commissionApproved || lead.commissionOpen || lead.commissionCancelled;
+    }
   }
 
   async apiRequest(action, params = new Map()) {
