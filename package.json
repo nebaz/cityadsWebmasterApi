@@ -1,6 +1,6 @@
 {
   "name": "cityads-webmaster-api",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "main": "CityadsApi.js",
   "description": "cityads.com API integration",
   "repository": {
