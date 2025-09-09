@@ -1,6 +1,6 @@
 {
   "name": "cityads-webmaster-api",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "main": "CityadsApi.js",
   "description": "cityads.com API integration",
   "repository": {
@@ -10,6 +10,11 @@
   "homepage": "http://github.com/nebaz/cityadsWebmasterApi",
   "author": "Nebaz <nebaz@ya.ru>",
   "license": "MIT",
+  "keywords": [
+    "cityads",
+    "webmaster",
+    "api"
+  ],
   "dependencies": {
     "node-fetch": "~2.6.7"
   }

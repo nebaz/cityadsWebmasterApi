@@ -89,7 +89,7 @@ class CityadsApi {
       result = {...result, ...apiData.items};
       start++;
     } while (apiData.total > limit * start)
-    return result;
+    return {ok: true, result: Object.values(result)};
   }
 
   async getCrByOfferId(dateFrom, dateTo, offerId, channelId = null) {
@@ -134,6 +134,7 @@ class CityadsApi {
           item.offerId = Number(item.offerID);
           item.status = this.#getLeadStatus(item.status);
           item.commission = this.#getLeadCommissionByStatus(item);
+          item.currency = item.wmCurrency;
           item.leadTime = this.#getTimestampByTextDate(item.leadTime);
           item.uploadTime = this.#getUploadTime(item.status, item.saleTime);
         });
