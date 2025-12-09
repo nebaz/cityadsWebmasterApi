@@ -84,7 +84,7 @@ class CityadsApi {
       params.set('limit', limit);
       apiData = await this.apiRequest(action, params);
       if (!apiData) {
-        return false;
+        return {ok: false};
       }
       result = {...result, ...apiData.items};
       start++;
